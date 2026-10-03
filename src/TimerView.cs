@@ -177,11 +177,7 @@ class TimerView : Surface
     // 숫자 폭이 달라 시간이 흔들려 보이지 않도록 칸을 고정해 그린다
     void DrawTime(Graphics g, string txt, float cx, float cy, float px)
     {
-        // 큰 글자는 격자에 맞추면 획 모양이 틀어지므로 격자 맞춤 없이 부드럽게 그린다
-        System.Drawing.Text.TextRenderingHint old = g.TextRenderingHint;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
         using (Font f = Theme.Fnt(px, true))
-        using (SolidBrush b = new SolidBrush(Theme.Text))
         using (StringFormat sf = new StringFormat(StringFormatFlags.NoWrap))
         {
             sf.Alignment = StringAlignment.Center;
@@ -194,11 +190,10 @@ class TimerView : Surface
             foreach (char c in txt)
             {
                 float w = c == ':' ? cw : dw;
-                g.DrawString(c.ToString(), f, b, new RectangleF(x - dw, cy - h / 2, w + 2 * dw, h), sf);
+                Gfx.DrawText(g, c.ToString(), f, Theme.Text, new RectangleF(x - dw, cy - h / 2, w + 2 * dw, h), sf);
                 x += w;
             }
         }
-        g.TextRenderingHint = old;
     }
 
     void DrawDots(Graphics g)

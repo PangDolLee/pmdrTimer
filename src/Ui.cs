@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Drawing.Text;
 using System.Windows.Forms;
 
@@ -120,11 +122,73 @@ static class Gfx
     {
         // 글자가 픽셀 사이에 걸치면 흐려지므로 상자 위치를 정수 픽셀에 맞춘다
         r = new RectangleF((float)Math.Round(r.X), (float)Math.Round(r.Y), (float)Math.Round(r.Width), (float)Math.Round(r.Height));
-        using (SolidBrush b = new SolidBrush(c))
         using (StringFormat sf = new StringFormat(StringFormatFlags.NoWrap))
         {
             sf.Alignment = h; sf.LineAlignment = v; sf.Trimming = StringTrimming.EllipsisCharacter;
-            g.DrawString(s, f, b, r, sf);
+            DrawText(g, s, f, c, r, sf);
+        }
+    }
+
+    const int SS = 4;   // 글자를 4배 크기로 그린 뒤 줄여서 쓴다
+
+    // 글자를 4배 크기로 그린 뒤 평균을 내어 1배로 줄인다.
+    // 4배에서는 폰트 힌팅·격자 맞춤·글자 폭 반올림의 영향이 거의 사라져 자간이 고르고 획 모양이 그대로 나오며,
+    // 1픽셀 아래 위치까지 정확히 반영된다. 어느 렌더러에서든 결과가 같다.
+    public static void DrawText(Graphics g, string s, Font f, Color c, RectangleF r, StringFormat sf)
+    {
+        if (string.IsNullOrEmpty(s) || r.Width < 1 || r.Height < 1) return;
+        int ox = (int)Math.Floor(r.X) - 2, oy = (int)Math.Floor(r.Y) - 2;
+        int w = (int)Math.Ceiling(r.Right) + 2 - ox, h = (int)Math.Ceiling(r.Bottom) + 2 - oy;
+        if (w < 1 || h < 1 || w > 4096 || h > 4096) return;
+
+        byte[] mask = new byte[w * h];
+        using (Bitmap big = new Bitmap(w * SS, h * SS, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics gb = Graphics.FromImage(big))
+            using (Font fb = new Font(f.FontFamily, f.Size * SS, f.Style & ~FontStyle.Strikeout, GraphicsUnit.Pixel))
+            using (SolidBrush white = new SolidBrush(Color.White))
+            {
+                gb.Clear(Color.Transparent);
+                gb.TextRenderingHint = TextRenderingHint.AntiAlias;
+                gb.DrawString(s, fb, white, new RectangleF((r.X - ox) * SS, (r.Y - oy) * SS, r.Width * SS, r.Height * SS), sf);
+            }
+            BitmapData bd = big.LockBits(new Rectangle(0, 0, big.Width, big.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                byte[] src = new byte[bd.Stride * big.Height];
+                Marshal.Copy(bd.Scan0, src, 0, src.Length);
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int sum = 0;
+                        for (int dy = 0; dy < SS; dy++)
+                        {
+                            int row = (y * SS + dy) * bd.Stride + x * SS * 4 + 3;
+                            for (int dx = 0; dx < SS; dx++) sum += src[row + dx * 4];
+                        }
+                        mask[y * w + x] = (byte)(sum / (SS * SS));
+                    }
+            }
+            finally { big.UnlockBits(bd); }
+        }
+
+        using (Bitmap small = new Bitmap(w, h, PixelFormat.Format32bppArgb))
+        {
+            BitmapData bd = small.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                byte[] dst = new byte[bd.Stride * h];
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int i = y * bd.Stride + x * 4;
+                        dst[i] = c.B; dst[i + 1] = c.G; dst[i + 2] = c.R;
+                        dst[i + 3] = (byte)Math.Min(255, (int)(255 * Math.Pow(mask[y * w + x] / 255.0, 0.85)));   // 살짝 진하게
+                    }
+                Marshal.Copy(dst, 0, bd.Scan0, dst.Length);
+            }
+            finally { small.UnlockBits(bd); }
+            g.DrawImageUnscaled(small, ox, oy);
         }
     }
 
@@ -133,9 +197,8 @@ static class Gfx
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
         g.CompositingQuality = CompositingQuality.HighQuality;
-        // ClearType + 격자 맞춤: 불투명 배경 위에서 획이 가장 선명하게 그려진다.
-        // (격자 맞춤 없는 AntiAlias는 작은 글자가 번져 보여 사용하지 않는다)
-        g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+        // 글자는 DrawText가 도형으로 그린다. 측정(MeasureString)이 격자 맞춤에 영향받지 않도록 AntiAlias로 둔다.
+        g.TextRenderingHint = TextRenderingHint.AntiAlias;
     }
 }
 
@@ -305,11 +368,13 @@ class Stepper : Surface
         tb.KeyDown += delegate (object s, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter) { Commit(); e.SuppressKeyPress = true; }
+            else if (e.KeyCode == Keys.Escape) { tb.Text = val.ToString(); tb.Visible = false; e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.Up) { Value = val + 1; e.Handled = true; }
             else if (e.KeyCode == Keys.Down) { Value = val - 1; e.Handled = true; }
         };
         tb.Leave += delegate { Commit(); };
         tb.GotFocus += delegate { tb.SelectAll(); };
+        tb.Visible = false;   // 평소엔 직접 그리고, 값을 클릭했을 때만 입력창을 보인다
         Controls.Add(tb);
         Cursor = Cursors.Default;
     }
@@ -337,7 +402,10 @@ class Stepper : Surface
     {
         int v;
         Value = int.TryParse(tb.Text, out v) ? v : val;
+        if (tb.Visible) { tb.Visible = false; Invalidate(); }
     }
+
+    RectangleF Zone() { return new RectangleF(Height, 0, Width - 2 * Height, Height); }
 
     RectangleF Minus() { float b = Height - 6; return new RectangleF(3, 3, b, b); }
     RectangleF Plus() { float b = Height - 6; return new RectangleF(Width - 3 - b, 3, b, b); }
@@ -355,8 +423,8 @@ class Stepper : Surface
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
-        string h = Minus().Contains(e.X, e.Y) ? "-" : Plus().Contains(e.X, e.Y) ? "+" : "";
-        if (h != hover) { hover = h; Cursor = h == "" ? Cursors.Default : Cursors.Hand; Invalidate(); }
+        string h = Minus().Contains(e.X, e.Y) ? "-" : Plus().Contains(e.X, e.Y) ? "+" : Zone().Contains(e.X, e.Y) ? "v" : "";
+        if (h != hover) { hover = h; Cursor = h == "" ? Cursors.Default : h == "v" ? Cursors.IBeam : Cursors.Hand; Invalidate(); }
         base.OnMouseMove(e);
     }
 
@@ -367,6 +435,7 @@ class Stepper : Surface
         Commit();
         if (Minus().Contains(e.X, e.Y)) Value = val - 1;
         else if (Plus().Contains(e.X, e.Y)) Value = val + 1;
+        else if (Zone().Contains(e.X, e.Y)) { tb.Text = val.ToString(); tb.Visible = true; tb.Focus(); tb.SelectAll(); }
         base.OnMouseDown(e);
     }
 
@@ -392,6 +461,9 @@ class Stepper : Surface
             }
         }
         float ux = tb.Right + 2 * s;
+        if (!tb.Visible)
+            using (Font f = Theme.Fnt(14 * s, true))
+                Gfx.Label(g, val.ToString(), f, Theme.Text, new RectangleF(tb.Left, 0, tb.Width, Height), StringAlignment.Center, StringAlignment.Center);
         using (Font f = Theme.Fnt(12 * s, false))
             Gfx.Label(g, Unit, f, Theme.Muted, new RectangleF(ux, 0, Width - Height - ux, Height), StringAlignment.Near, StringAlignment.Center);
     }
@@ -467,13 +539,11 @@ class TaskList : Surface
         if (Items.Count == 0)
         {
             using (Font f = Theme.Fnt(13 * s, false))
-            using (SolidBrush b = new SolidBrush(Theme.Muted))
             using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-                g.DrawString("아직 할 일이 없어요.\n오늘의 목표를 적어 보세요.", f, b, new RectangleF(0, 0, Width, Height), sf);
+                Gfx.DrawText(g, "아직 할 일이 없어요.\n오늘의 목표를 적어 보세요.", f, Theme.Muted, new RectangleF(0, 0, Width, Height), sf);
             return;
         }
         using (Font f = Theme.Fnt(14 * s, false))
-        using (Font fd = Theme.FntStyle(14 * s, FontStyle.Strikeout))
         {
             for (int i = 0; i < Items.Count; i++)
             {
@@ -497,7 +567,12 @@ class TaskList : Surface
                 }
 
                 RectangleF tx = new RectangleF(48 * s, y, Width - 48 * s - 44 * s, RowH);
-                Gfx.Label(g, t.Text, t.Done ? fd : f, t.Done ? Theme.Muted : Theme.Text, tx, StringAlignment.Near, StringAlignment.Center);
+                Gfx.Label(g, t.Text, f, t.Done ? Theme.Muted : Theme.Text, tx, StringAlignment.Near, StringAlignment.Center);
+                if (t.Done)
+                {
+                    float w = Math.Min(g.MeasureString(t.Text, f, 10000, StringFormat.GenericTypographic).Width, tx.Width - 4 * s);
+                    using (Pen p = new Pen(Theme.Muted, 1.2f * s)) g.DrawLine(p, tx.X, y + RowH / 2 + s, tx.X + w, y + RowH / 2 + s);
+                }
 
                 bool xh = hoverRow == i && hoverPart == 2;
                 using (Pen p = new Pen(xh ? Theme.Accent : Theme.Muted, 1.8f * s) { StartCap = LineCap.Round, EndCap = LineCap.Round })
@@ -560,11 +635,9 @@ class QuoteCard : Card
             float y = (Height - total) / 2;
             DrawQuoteMark(g, Width / 2f, y + 14 * s, s);
             y += mark.Height;
-            using (SolidBrush b = new SolidBrush(Theme.Text))
-                g.DrawString(text, ft, b, new RectangleF(area.X, y, area.Width, tsz.Height + 4), sf);
+            Gfx.DrawText(g, text, ft, Theme.Text, new RectangleF(area.X, y, area.Width, tsz.Height + 4), sf);
             y += tsz.Height + 18 * s;
-            using (SolidBrush b = new SolidBrush(Theme.Muted))
-                g.DrawString("— " + by, fb, b, new RectangleF(area.X, y, area.Width, fb.GetHeight(g) + 4), sf);
+            Gfx.DrawText(g, "— " + by, fb, Theme.Muted, new RectangleF(area.X, y, area.Width, fb.GetHeight(g) + 4), sf);
         }
     }
 }
