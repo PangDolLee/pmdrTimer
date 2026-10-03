@@ -1,4 +1,4 @@
-# pmdrTimer — 포모도로 타이머
+﻿# pmdrTimer — 포모도로 타이머
 
 집중 시간, 짧은 휴식, 긴 휴식을 직접 설정하고 할 일까지 관리하는 포모도로 타이머입니다.
 
@@ -11,7 +11,7 @@
 
 | 경로 | 설명 |
 |------|------|
-| `site/index.html` | 웹 배포용 단일 파일 (그대로 호스팅하면 됩니다) |
+| `docs/index.html` | 웹 배포용 단일 파일 (GitHub Pages가 이 폴더를 공개합니다) |
 | `포모도로 타이머.exe` | Windows용 실행 파일 (Edge/Chrome 앱 창으로 실행) |
 | `src/` | 소스 (`index.html`, `Launcher.cs`)와 exe 빌드 스크립트 `build.ps1` |
 
