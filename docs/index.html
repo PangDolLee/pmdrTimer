@@ -107,6 +107,18 @@ li:hover .x{opacity:1}.x:hover{color:var(--accent)}
 .sw input:checked+i{background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .sw input:checked+i::after{transform:translateX(18px)}
 
+/* ----- 집중 중: 설정 접기 · 명언 ----- */
+.fold{display:grid;grid-template-rows:1fr;transition:grid-template-rows .45s ease,opacity .35s ease,margin .45s ease}
+.fold>.in{overflow:hidden;overflow:clip;overflow-clip-margin:36px;min-height:0}
+.fold.settings{margin-bottom:0}
+body[data-focusing=on] .fold.settings{grid-template-rows:0fr;opacity:0;margin-bottom:-20px;pointer-events:none}
+.fold.quote{grid-template-rows:0fr;opacity:0;margin-bottom:-20px}
+body[data-focusing=on] .fold.quote{grid-template-rows:1fr;opacity:1;margin-bottom:0}
+.quote .card{text-align:center;padding:34px 28px}
+.quote q{display:block;quotes:none;font-size:19px;line-height:1.7;font-weight:600;word-break:keep-all}
+.quote cite{display:block;margin-top:16px;font-style:normal;font-size:13px;color:var(--muted)}
+.quote .mark{font-size:34px;line-height:1;color:var(--accent);margin-bottom:6px}
+
 /* ----- 토스트 · 통계 ----- */
 #toast{position:fixed;top:22px;left:50%;transform:translate(-50%,-90px);padding:13px 22px;border-radius:999px;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;transition:.4s;box-shadow:var(--shadow)}
 #toast.show{transform:translate(-50%,0)}
@@ -162,12 +174,21 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
       <div class="bar"><i id="tbar"></i></div>
       <ul id="tasks"></ul>
     </section>
-    <section class="card">
-      <h2>설정</h2>
-      <div id="settings"></div>
-      <div class="row"><span>다음 단계 자동 시작</span><label class="sw"><input type="checkbox" id="auto"><i></i></label></div>
-      <div class="row"><span>종료 알림음</span><label class="sw"><input type="checkbox" id="sound"><i></i></label></div>
-    </section>
+    <div class="fold settings"><div class="in">
+      <section class="card">
+        <h2>설정</h2>
+        <div id="settings"></div>
+        <div class="row"><span>다음 단계 자동 시작</span><label class="sw"><input type="checkbox" id="auto"><i></i></label></div>
+        <div class="row"><span>종료 알림음</span><label class="sw"><input type="checkbox" id="sound"><i></i></label></div>
+      </section>
+    </div></div>
+    <div class="fold quote" aria-live="polite"><div class="in">
+      <section class="card">
+        <div class="mark">“</div>
+        <q id="qText"></q>
+        <cite id="qBy"></cite>
+      </section>
+    </div></div>
   </div>
 </div>
 
@@ -215,6 +236,9 @@ function render() {
   const t = Math.max(0, Math.ceil(s.remaining));
   const txt = `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
   document.body.dataset.phase = s.phase;
+  const focusing = s.running && s.phase === 'focus';
+  if (focusing && document.body.dataset.focusing !== 'on') newQuote();
+  document.body.dataset.focusing = focusing ? 'on' : 'off';
   $('time').textContent = txt;
   $('sub').textContent = `다음 · ${NAMES[nextPhase()]}`;
   $('prog').style.strokeDasharray = CIRC;
@@ -230,17 +254,45 @@ function render() {
 }
 
 /* ---------- 타이머 ---------- */
-function beep() {
+const VOLUME = .45;
+// 집중 시작: 밝고 올라가는 3음 / 휴식 시작: 부드럽고 내려가는 2음
+const SOUNDS = {
+  focus: {type:'triangle', notes:[[0, 660], [.16, 880], [.32, 1320]], len:.26},
+  rest:  {type:'sine',     notes:[[0, 880], [.3, 587]],              len:.55}
+};
+function beep(next) {
   if (!cfg.sound) return;
   try {
-    const a = new AudioContext();
-    [0, .22, .44].forEach((d, i) => { const o = a.createOscillator(), g = a.createGain();
-      o.type = 'sine'; o.frequency.value = i === 2 ? 1175 : 880;
-      g.gain.setValueAtTime(.0001, a.currentTime + d); g.gain.exponentialRampToValueAtTime(.25, a.currentTime + d + .02);
-      g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + d + .2);
-      o.connect(g); g.connect(a.destination); o.start(a.currentTime + d); o.stop(a.currentTime + d + .22); });
+    const a = new AudioContext(), snd = SOUNDS[next === 'focus' ? 'focus' : 'rest'];
+    snd.notes.forEach(([d, f]) => { const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + d;
+      o.type = snd.type; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(VOLUME, t + .02);
+      g.gain.exponentialRampToValueAtTime(.0001, t + snd.len);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + snd.len + .02); });
   } catch {}
 }
+
+/* ---------- 명언 ---------- */
+const QUOTES = [
+  ['천 리 길도 한 걸음부터.', '속담'],
+  ['시작이 반이다.', '속담'],
+  ['우리가 반복적으로 하는 행동이 곧 우리 자신이다. 탁월함은 행동이 아니라 습관이다.', '윌 듀런트'],
+  ['할 수 있다고 믿든 할 수 없다고 믿든, 믿는 대로 될 것이다.', '헨리 포드'],
+  ['가장 큰 영광은 한 번도 실패하지 않음이 아니라, 실패할 때마다 다시 일어서는 데 있다.', '공자'],
+  ['지금 하지 않으면 언제 하겠는가.', '힐렐'],
+  ['성공은 매일 반복한 작은 노력의 합이다.', '로버트 콜리어'],
+  ['위대한 일은 힘이 아니라 끈기로 이루어진다.', '사무엘 존슨'],
+  ['나는 천천히 가는 것을 두려워하지 않는다. 멈춰 서는 것을 두려워할 뿐이다.', '중국 속담'],
+  ['집중이란 수많은 좋은 아이디어에 아니라고 말하는 것이다.', '스티브 잡스'],
+  ['오늘 할 수 있는 일에 전력을 다하라. 그러면 내일은 한 걸음 더 진보한다.', '아이작 뉴턴'],
+  ['불가능이란 노력하지 않는 자의 변명이다.', '나폴레옹'],
+];
+let quoteIdx = -1;
+function newQuote() {
+  let i; do { i = Math.floor(Math.random() * QUOTES.length); } while (i === quoteIdx && QUOTES.length > 1);
+  quoteIdx = i; $('qText').textContent = QUOTES[i][0]; $('qBy').textContent = '— ' + QUOTES[i][1];
+}
+newQuote();
 
 let toastTimer;
 function toast(msg) {
@@ -263,8 +315,8 @@ function tick() {
   s.remaining -= dt;
   if (s.remaining <= 0) {
     const done = s.phase;
-    beep(); window.focus();
     go(true);
+    beep(s.phase); window.focus();
     toast(done === 'focus' ? `집중 완료! ${NAMES[s.phase]} 시간이에요` : '휴식 끝! 다시 집중해 볼까요?');
   } else render();
   if (Math.floor(now / 1000) % 5 === 0) persistStat();
