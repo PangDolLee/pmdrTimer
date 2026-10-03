@@ -34,6 +34,7 @@ class TimerView : Surface
 
     // ---------- 배치 ----------
     RectangleF Pills() { return new RectangleF((Width - 336 * s) / 2, 24 * s, 336 * s, 44 * s); }
+    RectangleF ThemeBtn() { return Circle(Width - 24 * s - 17 * s, 46 * s, 34 * s); }
     RectangleF Ring() { return new RectangleF(Width / 2f - 135 * s, 90 * s, 270 * s, 270 * s); }
     RectangleF Circle(float cx, float cy, float d) { return new RectangleF(cx - d / 2, cy - d / 2, d, d); }
     RectangleF Reset() { return Circle(Width / 2f - 96 * s, 446 * s, 52 * s); }
@@ -50,6 +51,7 @@ class TimerView : Surface
     {
         s = Width / 500f;
         hits.Clear();
+        hits.Add(new KeyValuePair<string, RectangleF>("theme", ThemeBtn()));
         hits.Add(new KeyValuePair<string, RectangleF>("reset", Reset()));
         hits.Add(new KeyValuePair<string, RectangleF>("play", Play()));
         hits.Add(new KeyValuePair<string, RectangleF>("skip", Skip()));
@@ -94,6 +96,7 @@ class TimerView : Surface
         using (Pen p = new Pen(Theme.Line)) Gfx.DrawRound(g, p, card, 26 * s);
 
         DrawPills(g);
+        DrawThemeButton(g);
         DrawRing(g);
         DrawDots(g);
         DrawControls(g);
@@ -115,6 +118,42 @@ class TimerView : Surface
                 if (on) using (LinearGradientBrush b = Gfx.AccentBrush(r)) Gfx.FillRound(g, b, r, 17 * s);
                 Gfx.Label(g, names[i], f, on ? Color.White : Theme.Muted, r, StringAlignment.Center, StringAlignment.Center);
             }
+    }
+
+    // 다크일 땐 해(라이트로 전환), 라이트일 땐 달(다크로 전환) 아이콘
+    void DrawThemeButton(Graphics g)
+    {
+        RectangleF r = ThemeBtn();
+        CircleButton(g, r, hover == "theme");
+        float cx = r.X + r.Width / 2, cy = r.Y + r.Height / 2;
+        if (Theme.Dark)
+        {
+            using (SolidBrush b = new SolidBrush(Theme.Text)) g.FillEllipse(b, cx - 4.5f * s, cy - 4.5f * s, 9 * s, 9 * s);
+            using (Pen p = new Pen(Theme.Text, 1.8f * s) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                for (int i = 0; i < 8; i++)
+                {
+                    double a = Math.PI * i / 4;
+                    float c = (float)Math.Cos(a), sn = (float)Math.Sin(a);
+                    g.DrawLine(p, cx + c * 7.5f * s, cy + sn * 7.5f * s, cx + c * 10 * s, cy + sn * 10 * s);
+                }
+        }
+        else
+        {
+            float d = 17 * s;
+            using (GraphicsPath moon = new GraphicsPath())
+            {
+                moon.AddEllipse(cx - d / 2, cy - d / 2, d, d);
+                using (GraphicsPath cut = new GraphicsPath())
+                {
+                    cut.AddEllipse(cx - d / 2 + 6 * s, cy - d / 2 - 4 * s, d, d);
+                    using (Region reg = new Region(moon))
+                    {
+                        reg.Exclude(cut);
+                        using (SolidBrush b = new SolidBrush(Theme.Text)) g.FillRegion(b, reg);
+                    }
+                }
+            }
+        }
     }
 
     void DrawRing(Graphics g)

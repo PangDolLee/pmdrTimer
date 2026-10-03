@@ -223,7 +223,9 @@ class StatsDialog : Form
             Gfx.Label(g, "이번 공부 세션의 기록입니다.", f, Theme.Muted, new RectangleF(30 * s, 62 * s, 380 * s, 22 * s), StringAlignment.Near, StringAlignment.Center);
 
         string[] cap = { "총 집중 시간", "총 휴식 시간" }, val = { Fmt.Dur(focus), Fmt.Dur(rest) };
-        Color[] col = { Color.FromArgb(255, 138, 138), Color.FromArgb(79, 224, 180) };
+        Color[] col = Theme.Dark
+            ? new[] { Color.FromArgb(255, 138, 138), Color.FromArgb(79, 224, 180) }
+            : new[] { Color.FromArgb(232, 84, 84), Color.FromArgb(22, 170, 128) };
         for (int i = 0; i < 2; i++)
         {
             RectangleF r = new RectangleF(30 * s + i * 195 * s, 104 * s, 185 * s, 80 * s);
@@ -303,6 +305,8 @@ class MainForm : Form
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
         ClientSize = new Size((int)(1048 * K), (int)(688 * K));
 
+        Theme.SetDark(cfg.Dark);
+        BackColor = Theme.Bg;
         Store.LoadStat(out statFocus, out statRest, out statCycles);
         remaining = Total("focus");
 
@@ -356,6 +360,7 @@ class MainForm : Form
         anim.Interval = 15; anim.Tick += delegate { AnimStep(); };
         ApplySlot();
         RefreshTasks();
+        ApplyTheme(this);
         Render();
 
         Shown += delegate { ActiveControl = tv; };
@@ -369,7 +374,8 @@ class MainForm : Form
     // ---------- 명령 ----------
     void OnCommand(string id)
     {
-        if (id == "play") Toggle();
+        if (id == "theme") ToggleTheme();
+        else if (id == "play") Toggle();
         else if (id == "skip") { Tick(); Go(false); }
         else if (id == "reset") { running = false; remaining = Total(phase); Render(); }
         else if (id == "end") EndSession();
@@ -383,6 +389,24 @@ class MainForm : Form
             return true;
         }
         return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    void ToggleTheme()
+    {
+        cfg.Dark = !cfg.Dark;
+        Store.SaveConfig(cfg);
+        Theme.SetDark(cfg.Dark);
+        ApplyTheme(this);
+        Invalidate(true);
+    }
+
+    void ApplyTheme(Control root)
+    {
+        if (root == this || root == slot) root.BackColor = Theme.Bg;
+        else if (root is Surface) root.BackColor = Theme.Card;
+        if (root is Stepper) ((Stepper)root).ApplyTheme();
+        if (root is TextBox) { root.BackColor = Theme.Card2; root.ForeColor = Theme.Text; }
+        foreach (Control c in root.Controls) ApplyTheme(c);
     }
 
     void Toggle()

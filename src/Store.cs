@@ -12,7 +12,7 @@ class TaskItem
 class Config
 {
     public int Focus = 25, Short = 5, Long = 15, Cycles = 4, Volume = 70;
-    public bool Auto = true, Sound = true;
+    public bool Auto = true, Sound = true, Dark = false;
 }
 
 // %APPDATA%\PomodoroTimer 아래에 설정·할 일·통계를 저장한다.
@@ -78,6 +78,7 @@ static class Store
         c.Volume = Int(d, "volume", c.Volume, 0, 100);
         c.Auto = Bool(d, "auto", c.Auto);
         c.Sound = Bool(d, "sound", c.Sound);
+        c.Dark = Bool(d, "dark", c.Dark);
         return c;
     }
 
@@ -86,7 +87,7 @@ static class Store
         Dictionary<string, string> d = new Dictionary<string, string>();
         d["focus"] = c.Focus.ToString(); d["short"] = c.Short.ToString(); d["long"] = c.Long.ToString();
         d["cycles"] = c.Cycles.ToString(); d["volume"] = c.Volume.ToString();
-        d["auto"] = c.Auto ? "1" : "0"; d["sound"] = c.Sound ? "1" : "0";
+        d["auto"] = c.Auto ? "1" : "0"; d["sound"] = c.Sound ? "1" : "0"; d["dark"] = c.Dark ? "1" : "0";
         WriteIni("settings.ini", d);
     }
 
