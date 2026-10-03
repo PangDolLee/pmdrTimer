@@ -63,7 +63,7 @@ static class FontLoader
     // 높이 계산용 Font는 시스템 글꼴로 두고, 등록에 실패하면 그 글꼴이 그대로 쓰인다.
     public static void ApplyTo(System.Windows.Forms.TextBox tb, float px, bool bold)
     {
-        px = Math.Max(1f, px);
+        px = Math.Max(1f, (float)Math.Round(px));
         tb.Font = new Font(Theme.Family, px, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
         if (family == null) return;
         try

@@ -73,7 +73,7 @@ static class Theme
     // 내장 Pretendard를 쓰고, 불러오지 못했을 때만 시스템 글꼴로 대체한다
     public static Font FntStyle(float px, FontStyle style)
     {
-        px = Math.Max(1f, px);
+        px = Math.Max(1f, (float)Math.Round(px));   // 정수 픽셀 크기라야 획이 번지지 않는다
         if (FontLoader.Family != null) return new Font(FontLoader.Family, px, style, GraphicsUnit.Pixel);
         return new Font(Family, px, style, GraphicsUnit.Pixel);
     }
@@ -118,6 +118,8 @@ static class Gfx
 
     public static void Label(Graphics g, string s, Font f, Color c, RectangleF r, StringAlignment h, StringAlignment v)
     {
+        // 글자가 픽셀 사이에 걸치면 흐려지므로 상자 위치를 정수 픽셀에 맞춘다
+        r = new RectangleF((float)Math.Round(r.X), (float)Math.Round(r.Y), (float)Math.Round(r.Width), (float)Math.Round(r.Height));
         using (SolidBrush b = new SolidBrush(c))
         using (StringFormat sf = new StringFormat(StringFormatFlags.NoWrap))
         {
@@ -131,8 +133,9 @@ static class Gfx
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
         g.CompositingQuality = CompositingQuality.HighQuality;
-        // 격자 맞춤(GridFit) 없이 그려 글자 획이 들쭉날쭉하지 않게 한다
-        g.TextRenderingHint = TextRenderingHint.AntiAlias;
+        // ClearType + 격자 맞춤: 불투명 배경 위에서 획이 가장 선명하게 그려진다.
+        // (격자 맞춤 없는 AntiAlias는 작은 글자가 번져 보여 사용하지 않는다)
+        g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
     }
 }
 
