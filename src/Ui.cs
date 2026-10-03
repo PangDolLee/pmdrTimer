@@ -7,17 +7,32 @@ using System.Windows.Forms;
 
 static class Theme
 {
-    public static readonly Color Bg = Color.FromArgb(13, 15, 20);
-    public static readonly Color Card = Color.FromArgb(22, 26, 35);
-    public static readonly Color Card2 = Color.FromArgb(32, 37, 50);
-    public static readonly Color Line = Color.FromArgb(46, 52, 68);
-    public static readonly Color Text = Color.FromArgb(236, 239, 246);
-    public static readonly Color Muted = Color.FromArgb(140, 149, 168);
-    public static readonly Color Track = Color.FromArgb(48, 54, 70);
+    public static Color Bg, Card, Card2, Line, Text, Muted, Track;
+    public static bool Dark;
     public static Color Accent = Color.FromArgb(255, 107, 107);
     public static Color Accent2 = Color.FromArgb(255, 159, 107);
 
     static string family, phase = "focus";
+
+    static Theme() { SetDark(false); }
+
+    // 라이트(기본) / 다크 팔레트 전환
+    public static void SetDark(bool dark)
+    {
+        Dark = dark;
+        if (dark)
+        {
+            Bg = Color.FromArgb(13, 15, 20); Card = Color.FromArgb(22, 26, 35); Card2 = Color.FromArgb(32, 37, 50);
+            Line = Color.FromArgb(46, 52, 68); Text = Color.FromArgb(236, 239, 246); Muted = Color.FromArgb(140, 149, 168);
+            Track = Color.FromArgb(48, 54, 70);
+        }
+        else
+        {
+            Bg = Color.FromArgb(240, 242, 248); Card = Color.FromArgb(255, 255, 255); Card2 = Color.FromArgb(242, 244, 250);
+            Line = Color.FromArgb(224, 228, 238); Text = Color.FromArgb(24, 28, 40); Muted = Color.FromArgb(110, 118, 138);
+            Track = Color.FromArgb(226, 230, 240);
+        }
+    }
 
     // 단계별 강조색. 바뀌었으면 true
     public static bool SetPhase(string p)
@@ -250,6 +265,7 @@ class Slider : Surface
         using (LinearGradientBrush b = Gfx.AccentBrush(new RectangleF(pad, 0, Math.Max(1f, Width - 2 * pad), Height))) Gfx.FillRound(g, b, fill, th);
         float d = Height * 0.62f;
         using (SolidBrush w = new SolidBrush(Color.White)) g.FillEllipse(w, x - d / 2, cy - d / 2, d, d);
+        using (Pen p = new Pen(Theme.Dark ? Theme.Line : Theme.Muted, Math.Max(1f, Height / 26f))) g.DrawEllipse(p, x - d / 2, cy - d / 2, d, d);
     }
 }
 
@@ -300,6 +316,8 @@ class Stepper : Surface
     }
 
     public void SetSilently(int v) { lockEvent = true; Value = v; lockEvent = false; }
+
+    public void ApplyTheme() { tb.BackColor = Theme.Card2; tb.ForeColor = Theme.Text; }
 
     void Commit()
     {
