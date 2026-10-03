@@ -12,7 +12,7 @@
 | 경로 | 설명 |
 |------|------|
 | `docs/index.html` | 웹 배포용 단일 파일 (GitHub Pages가 이 폴더를 공개합니다) |
-| `포모도로 타이머.exe` | Windows용 실행 파일 (Edge/Chrome 앱 창으로 실행) |
+| `포모도로 타이머.exe` | Windows용 실행 파일 (기본 브라우저로 실행) |
 | `src/` | 소스 (`index.html`, `Launcher.cs`)와 exe 빌드 스크립트 `build.ps1` |
 
 ## Windows exe 다시 빌드

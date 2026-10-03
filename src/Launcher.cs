@@ -18,33 +18,14 @@ static class Launcher
         using (FileStream f = File.Create(html))
             r.CopyTo(f);
 
-        string browser = Find();
-        if (browser == null)
+        // 시스템 기본 브라우저로 연다
+        try
         {
-            MessageBox.Show("Microsoft Edge 또는 Google Chrome이 필요합니다.", "포모도로 타이머");
-            return;
+            Process.Start(new ProcessStartInfo(new Uri(html).AbsoluteUri) { UseShellExecute = true });
         }
-
-        // --app: 주소창·탭 없이 앱처럼 뜨는 창. 전용 프로필을 써서 설정/할 일이 그대로 저장된다
-        string args = "--app=\"" + new Uri(html).AbsoluteUri + "\""
-                    + " --user-data-dir=\"" + Path.Combine(dir, "profile") + "\""
-                    + " --window-size=1100,860 --no-first-run --no-default-browser-check";
-        Process.Start(browser, args);
-    }
-
-    static string Find()
-    {
-        string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string[] candidates = {
-            Path.Combine(pf86, @"Microsoft\Edge\Application\msedge.exe"),
-            Path.Combine(pf,   @"Microsoft\Edge\Application\msedge.exe"),
-            Path.Combine(pf,   @"Google\Chrome\Application\chrome.exe"),
-            Path.Combine(pf86, @"Google\Chrome\Application\chrome.exe"),
-            Path.Combine(local, @"Google\Chrome\Application\chrome.exe"),
-        };
-        foreach (string c in candidates) if (File.Exists(c)) return c;
-        return null;
+        catch (Exception)
+        {
+            MessageBox.Show("기본 브라우저를 열 수 없습니다.", "포모도로 타이머");
+        }
     }
 }
