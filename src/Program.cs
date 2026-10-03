@@ -14,6 +14,7 @@ static class Program
     static void Main()
     {
         try { SetProcessDPIAware(); } catch (Exception) { }
+        FontLoader.Load();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.Run(new MainForm());
@@ -86,7 +87,7 @@ class PlannerCard : Card
         base.OnLayout(e);
         float s = Width / 480f;
         AddButton.SetBounds((int)(Width - 28 * s - 76 * s), (int)(58 * s), (int)(76 * s), (int)(40 * s));
-        Input.Font = Theme.Fnt(14 * s, false);
+        FontLoader.ApplyTo(Input, 14 * s, false);
         Input.SetBounds((int)(28 * s + 14 * s), 0, (int)(Width - 56 * s - 84 * s - 28 * s), Input.Height);
         Input.Top = (int)(58 * s + (40 * s - Input.Height) / 2);
         List.SetBounds((int)(28 * s), (int)(130 * s), (int)(Width - 56 * s), Math.Max(0, (int)(Height - 130 * s - 18 * s)));

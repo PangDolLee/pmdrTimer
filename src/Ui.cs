@@ -51,7 +51,7 @@ static class Theme
         {
             if (family == null)
             {
-                string[] want = { "Malgun Gothic", "Segoe UI", "NanumGothic", "Noto Sans CJK KR" };
+                string[] want = { "Pretendard Variable", "Pretendard", "Malgun Gothic", "Segoe UI", "NanumGothic", "Noto Sans CJK KR" };
                 family = FontFamily.GenericSansSerif.Name;
                 foreach (string w in want)
                 {
@@ -67,7 +67,15 @@ static class Theme
 
     public static Font Fnt(float px, bool bold)
     {
-        return new Font(Family, Math.Max(1f, px), bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+        return FntStyle(px, bold ? FontStyle.Bold : FontStyle.Regular);
+    }
+
+    // 내장 Pretendard를 쓰고, 불러오지 못했을 때만 시스템 글꼴로 대체한다
+    public static Font FntStyle(float px, FontStyle style)
+    {
+        px = Math.Max(1f, px);
+        if (FontLoader.Family != null) return new Font(FontLoader.Family, px, style, GraphicsUnit.Pixel);
+        return new Font(Family, px, style, GraphicsUnit.Pixel);
     }
 
     public static Color Mix(Color a, Color b, double t)
@@ -121,7 +129,10 @@ static class Gfx
     public static void Quality(Graphics g)
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.CompositingQuality = CompositingQuality.HighQuality;
+        // 격자 맞춤(GridFit) 없이 그려 글자 획이 들쭉날쭉하지 않게 한다
+        g.TextRenderingHint = TextRenderingHint.AntiAlias;
     }
 }
 
@@ -332,7 +343,7 @@ class Stepper : Surface
     {
         base.OnLayout(e);
         float s = Height / 32f;
-        tb.Font = Theme.Fnt(14 * s, true);
+        FontLoader.ApplyTo(tb, 14 * s, true);
         float mid = Width - 2 * Height;
         tb.Width = (int)(mid * 0.58f);
         tb.Left = (int)(Height + 2 * s);
@@ -459,7 +470,7 @@ class TaskList : Surface
             return;
         }
         using (Font f = Theme.Fnt(14 * s, false))
-        using (Font fd = new Font(Theme.Family, 14 * s, FontStyle.Strikeout, GraphicsUnit.Pixel))
+        using (Font fd = Theme.FntStyle(14 * s, FontStyle.Strikeout))
         {
             for (int i = 0; i < Items.Count; i++)
             {
@@ -507,6 +518,26 @@ class QuoteCard : Card
         Invalidate();
     }
 
+    // 글꼴에 의존하지 않고 여는 따옴표를 도형으로 그린다
+    static void DrawQuoteMark(Graphics g, float cx, float top, float s)
+    {
+        s *= 0.72f;
+        float r = 7.5f * s, cy = top + 10 * s;
+        using (SolidBrush b = new SolidBrush(Theme.Accent))
+            for (int i = 0; i < 2; i++)
+            {
+                float x = cx + (i == 0 ? -17 : 5) * s;
+                g.FillEllipse(b, x, cy, 2 * r, 2 * r);
+                using (GraphicsPath tail = new GraphicsPath())
+                {
+                    tail.AddBezier(x, cy + r, x, cy - 6 * s, x + 6 * s, cy - 14 * s, x + 12 * s, cy - 15 * s);
+                    tail.AddBezier(x + 12 * s, cy - 15 * s, x + 8 * s, cy - 8 * s, x + 2 * r, cy - 2 * s, x + 2 * r, cy + r);
+                    tail.CloseFigure();
+                    g.FillPath(b, tail);
+                }
+            }
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
@@ -516,17 +547,15 @@ class QuoteCard : Card
         float pad = 36 * s;
         RectangleF area = new RectangleF(pad, 0, Width - 2 * pad, Height);
 
-        using (Font fm = Theme.Fnt(64 * s, true))
         using (Font ft = Theme.Fnt(20 * s, true))
         using (Font fb = Theme.Fnt(13.5f * s, false))
         using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
         {
-            SizeF mark = new SizeF(0, 44 * s);
+            SizeF mark = new SizeF(0, 50 * s);
             SizeF tsz = g.MeasureString(text, ft, (int)area.Width, sf);
             float total = mark.Height + tsz.Height + 18 * s + fb.GetHeight(g);
             float y = (Height - total) / 2;
-            using (SolidBrush b = new SolidBrush(Theme.Accent))
-                g.DrawString("“", fm, b, new RectangleF(0, y - 18 * s, Width, 80 * s), sf);
+            DrawQuoteMark(g, Width / 2f, y + 14 * s, s);
             y += mark.Height;
             using (SolidBrush b = new SolidBrush(Theme.Text))
                 g.DrawString(text, ft, b, new RectangleF(area.X, y, area.Width, tsz.Height + 4), sf);
