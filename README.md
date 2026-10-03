@@ -17,7 +17,8 @@
 |------|------|
 | `docs/index.html` | 웹 배포용 단일 파일 (GitHub Pages가 이 폴더를 공개합니다) |
 | `포모도로 타이머.exe` | Windows용 단일 실행 파일 (WinForms 네이티브 앱, 브라우저·추가 설치 불필요) |
-| `src/` | exe 소스 (`Program.cs`, `Ui.cs`, `TimerView.cs`, `Sound.cs`, `Store.cs`, `Quotes.cs`)와 빌드 스크립트 `build.ps1` |
+| `src/fonts/` | 내장 글꼴 Pretendard Variable (Regular 400 / Bold 700 인스턴스, gzip)와 라이선스(SIL OFL 1.1) |
+| `src/` | exe 소스 (`Program.cs`, `Ui.cs`, `TimerView.cs`, `Sound.cs`, `Store.cs`, `Quotes.cs`, `Fonts.cs`)와 빌드 스크립트 `build.ps1` |
 
 ## Windows exe 다시 빌드
 
