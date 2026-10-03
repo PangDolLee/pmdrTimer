@@ -25,7 +25,7 @@ $icoPath = Join-Path $here 'app.ico'
 # 2) 컴파일 (Windows에 기본 포함된 .NET Framework 컴파일러 사용)
 $csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64\v4*\csc.exe" | Select-Object -First 1 -ExpandProperty FullName
 $out = Join-Path $root '포모도로 타이머.exe'
+$sources = 'Program.cs', 'Ui.cs', 'TimerView.cs', 'Sound.cs', 'Store.cs', 'Quotes.cs' | ForEach-Object { Join-Path $here $_ }
 & $csc /nologo /target:winexe /codepage:65001 /out:$out /win32icon:$icoPath `
-    /resource:"$(Join-Path $here 'index.html'),index.html" `
-    /reference:System.Windows.Forms.dll (Join-Path $here 'Launcher.cs')
+    /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $sources
 if ($LASTEXITCODE -eq 0) { "빌드 완료: $out" }
