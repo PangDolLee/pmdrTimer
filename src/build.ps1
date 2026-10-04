@@ -27,5 +27,5 @@ $csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64\v4*\csc.exe" | Selec
 $out = Join-Path $root '포모도로 타이머.exe'
 & $csc /nologo /target:winexe /codepage:65001 /out:$out /win32icon:$icoPath `
     /resource:"$(Join-Path $here 'index.html'),index.html" `
-    /reference:System.Windows.Forms.dll (Join-Path $here 'Launcher.cs')
+    /reference:System.Windows.Forms.dll /reference:System.Drawing.dll (Join-Path $here 'Launcher.cs')
 if ($LASTEXITCODE -eq 0) { "빌드 완료: $out" }

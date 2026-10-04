@@ -134,6 +134,43 @@ body[data-focusing=on] .fold.quote{grid-template-rows:1fr;opacity:1;margin-botto
 :root:not([data-theme=dark]) .big .f b{color:#e5484d}
 :root:not([data-theme=dark]) .big .r b{color:#12a37f}
 
+/* ----- 학습 기록(캘린더) ----- */
+.cal-btn{position:absolute;top:22px;right:68px;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card-2);color:var(--text);display:grid;place-items:center;cursor:pointer;transition:.2s;padding:0}
+.cal-btn:hover{transform:translateY(-1px);border-color:var(--accent)}
+.cal-btn svg{width:18px;height:18px;fill:currentColor}
+#cal{width:min(600px,94vw)}
+#cal h3{margin:0}
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--card-2);border-radius:999px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:600 13px var(--font);padding:7px 18px;border-radius:999px;cursor:pointer}
+.tabs button.on{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.calnav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.calnav b{flex:1;text-align:center;font-size:15px}
+.calnav .nb{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--card-2);color:var(--text);cursor:pointer;font-size:18px;line-height:1;padding:0}
+.calnav .nb:hover,.calnav .mini:hover{border-color:var(--accent)}
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.mgrid .dow{text-align:center;font-size:12px;color:var(--muted);padding:2px 0 4px}
+.mgrid .day{min-height:60px;border-radius:12px;padding:6px 5px 6px 7px;background:var(--card-2);display:flex;flex-direction:column;justify-content:space-between;font-size:12px}
+.mgrid .day.off{background:transparent}
+.mgrid .day b{font-weight:600}
+.mgrid .day small{font-size:10.5px;font-weight:600;color:var(--text);line-height:1.25;white-space:nowrap}
+.mgrid .day.today{outline:2px solid var(--accent);outline-offset:-2px}
+.day[data-l="1"]{background:color-mix(in srgb,var(--accent) 14%,var(--card-2))}
+.day[data-l="2"]{background:color-mix(in srgb,var(--accent) 28%,var(--card-2))}
+.day[data-l="3"]{background:color-mix(in srgb,var(--accent) 42%,var(--card-2))}
+.day[data-l="4"]{background:color-mix(in srgb,var(--accent) 58%,var(--card-2))}
+.day[data-l="5"]{background:color-mix(in srgb,var(--accent) 74%,var(--card-2))}
+.wrow{display:grid;grid-template-columns:84px 1fr 96px;align-items:center;gap:12px;padding:9px 0;font-size:13px}
+.wrow+.wrow{border-top:1px solid var(--line)}
+.wrow .wl small{display:block;color:var(--muted);font-size:11px}
+.wrow .wl.today b{color:var(--accent)}
+.wrow .bar2{height:12px;border-radius:6px;background:var(--track);overflow:hidden}
+.wrow .bar2 i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.wrow .wv{text-align:right;font-variant-numeric:tabular-nums}
+.wrow .wv small{display:block;color:var(--muted);font-size:11px}
+.calsum{margin-top:16px}
+.calnote{margin-top:10px;font-size:11px;color:var(--muted);text-align:center}
+
 /* ----- 토스트 · 통계 ----- */
 #toast{position:fixed;top:22px;left:50%;transform:translate(-50%,-90px);padding:13px 22px;border-radius:999px;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;transition:.4s;box-shadow:var(--shadow)}
 #toast.show{transform:translate(-50%,0)}
@@ -160,6 +197,7 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
 <div class="app">
   <section class="card timer">
     <button class="theme-btn" id="themeBtn" type="button"></button>
+    <button class="cal-btn" id="calBtn" type="button" title="학습 기록(주간·월간)" aria-label="학습 기록"><svg viewBox="0 0 24 24"><path d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3V2zM5 9v10h14V9H5zm2 2h3v3H7v-3zm5 0h3v3h-3v-3z"/></svg></button>
     <div class="pills" id="pills">
       <div class="pill" data-p="focus">집중</div><div class="pill" data-p="short">짧은 휴식</div><div class="pill" data-p="long">긴 휴식</div>
     </div>
@@ -216,12 +254,22 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
 
 <dialog id="stats">
   <h3>수고하셨어요 🎉</h3>
-  <p>이번 공부 세션의 기록입니다.</p>
+  <p>오늘의 공부 기록입니다.</p>
   <div class="big"><div class="f"><span>총 집중 시간</span><b id="sFocus"></b></div><div class="r"><span>총 휴식 시간</span><b id="sRest"></b></div></div>
   <div class="split"><i id="spF" style="background:#ff6b6b"></i><i id="spR" style="background:#2fd4a0"></i></div>
   <div class="sum"><span>완료한 사이클</span><b id="sCycles"></b></div>
   <div class="sum"><span>완료한 할 일</span><b id="sTasks"></b></div>
   <div class="acts"><button id="keep">계속 공부하기</button><button class="pri" id="fresh">새 세션 시작</button></div>
+</dialog>
+
+<dialog id="cal">
+  <div class="calhead"><h3>학습 기록</h3>
+    <div class="tabs" id="calTabs"><button type="button" data-v="week">주간</button><button type="button" data-v="month" class="on">월간</button></div></div>
+  <div class="calnav"><button type="button" class="nb" id="cPrev" aria-label="이전">‹</button><b id="cLabel"></b><button type="button" class="nb" id="cNext" aria-label="다음">›</button><button type="button" class="mini" id="cToday">오늘</button></div>
+  <div id="calBody"></div>
+  <div class="calsum" id="calSum"></div>
+  <div class="calnote">하루의 기준은 새벽 2시입니다. 새벽 2시가 지나면 오늘의 집중·휴식 시간이 새로 집계됩니다.</div>
+  <div class="acts"><button class="pri" id="cClose" type="button">닫기</button></div>
 </dialog>
 
 <script>
@@ -232,12 +280,36 @@ const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch
 const cfg = Object.assign({focus:25, short:5, long:15, cycles:4, auto:true, sound:true, volume:70, theme:'light'}, ld('pomo-cfg', {}));
 let tasks = ld('pomo-tasks', []);
 const s = {phase:'focus', cycle:0, running:false, last:0, remaining:0,
-           stat:Object.assign({focus:0, rest:0, cycles:0}, ld('pomo-stat', {}))};
+           stat:null};
 
 const NAMES = {focus:'집중', short:'짧은 휴식', long:'긴 휴식'};
 const CIRC = 2 * Math.PI * 132;
 const total = p => cfg[p] * 60;
 s.remaining = total('focus');
+
+/* ---------- 일일 집계 (새벽 2시 기준) ---------- */
+const DAY_START_HOUR = 2;
+const pad2 = n => String(n).padStart(2, '0');
+const keyOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const dayKey = (ts = Date.now()) => keyOf(new Date(ts - DAY_START_HOUR * 3600 * 1000));
+let days = ld('pomo-days', {});
+(function migrateOldStat() {
+  const old = ld('pomo-stat', null);
+  if (old && (old.focus || old.rest || old.cycles)) {
+    const d = days[dayKey()] || (days[dayKey()] = {focus:0, rest:0, cycles:0});
+    d.focus += old.focus || 0; d.rest += old.rest || 0; d.cycles += old.cycles || 0;
+    sv('pomo-days', days);
+  }
+  try { localStorage.removeItem('pomo-stat'); } catch {}
+})();
+s.day = '';
+function rollDay() {
+  const k = dayKey();
+  if (s.day === k) return false;
+  s.day = k; s.stat = days[k] || (days[k] = {focus:0, rest:0, cycles:0});
+  return true;
+}
+rollDay();
 
 const dur = sec => { sec = Math.round(sec); const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), x = sec%60;
   return h ? `${h}시간 ${m}분` : m ? `${m}분 ${x}초` : `${x}초`; };
@@ -314,7 +386,6 @@ const QUOTES = [
   ["오늘 할 수 있는 일을 내일로 미루지 마라.", "벤저민 프랭클린"],
   ["근면은 행운의 어머니다.", "벤저민 프랭클린"],
   ["고통스러운 일이 우리를 가르친다.", "벤저민 프랭클린"],
-  ["이것은 한 인간에게는 작은 한 걸음이지만, 인류에게는 거대한 도약이다.", "닐 암스트롱"],
   ["신비는 경이를 낳고, 경이는 이해하고자 하는 인간 욕구의 토대다.", "닐 암스트롱"],
   ["천재는 1%의 영감과 99%의 노력으로 이루어진다.", "토머스 에디슨"],
   ["나는 실패한 것이 아니다. 효과가 없는 1만 가지 방법을 찾아냈을 뿐이다.", "토머스 에디슨"],
@@ -329,7 +400,6 @@ const QUOTES = [
   ["위대한 일을 하는 유일한 방법은 자신이 하는 일을 사랑하는 것입니다.", "스티브 잡스"],
   ["집중이란 '아니오'라고 말하는 것입니다.", "스티브 잡스"],
   ["성공은 형편없는 스승이다. 똑똑한 사람들이 절대 지지 않을 거라고 착각하게 만든다.", "빌 게이츠"],
-  ["명성을 쌓는 데는 20년이 걸리지만, 그것을 무너뜨리는 데는 5분이면 충분하다.", "워런 버핏"],
   ["첫 번째 원칙은 자신을 속이지 않는 것이다. 그리고 당신은 가장 속이기 쉬운 사람이다.", "리처드 파인만"],
   ["상상력은 존재한 적 없는 세계로 우리를 데려간다. 그러나 상상력이 없다면 우리는 어디에도 가지 못한다.", "칼 세이건"],
   ["교육은 자유라는 황금 문을 여는 열쇠다.", "조지 워싱턴 카버"],
@@ -342,7 +412,6 @@ const QUOTES = [
   ["여러 번 패배할 수는 있다. 그러나 패배당해서는 안 된다.", "마야 안젤루"],
   ["더 알기 전까지는 최선을 다하라. 그리고 더 알게 되면 더 잘하라.", "마야 안젤루"],
   ["마음에 들지 않는 것이 있으면 바꿔라. 바꿀 수 없다면 그것을 대하는 태도를 바꿔라.", "마야 안젤루"],
-  ["다른 사람들의 삶에 미치는 영향을 제외하면 삶은 중요하지 않다.", "재키 로빈슨"],
   ["혼자서는 할 수 있는 일이 적지만, 함께하면 많은 일을 할 수 있다.", "헬렌 켈러"],
   ["삶은 대담한 모험이거나, 아무것도 아니다.", "헬렌 켈러"],
   ["세상은 고통으로 가득하지만, 그것을 이겨 낸 이야기로도 가득하다.", "헬렌 켈러"],
@@ -358,7 +427,6 @@ const QUOTES = [
   ["어떤 것의 값은, 그것을 얻기 위해 내가 삶이라 부르는 것을 얼마나 내주어야 하느냐로 정해진다.", "헨리 데이비드 소로"],
   ["용기란 두려움에 대한 저항이자 두려움의 정복이지, 두려움이 없는 것이 아니다.", "마크 트웨인"],
   ["습관은 창밖으로 던져 버릴 수 없다. 한 번에 한 계단씩 달래서 내려보내야 한다.", "마크 트웨인"],
-  ["힘찬 연극은 계속되고, 당신도 한 편의 시를 보탤 수 있다.", "월트 휘트먼"],
   ["벗어나는 가장 좋은 길은 언제나 통과하는 것이다.", "로버트 프로스트"],
   ["숲속에 두 갈래 길이 있었고, 나는 사람이 덜 지나간 길을 택했다. 그리고 그것이 모든 것을 바꾸어 놓았다.", "로버트 프로스트"],
   ["숲은 아름답고 어둡고 깊지만, 나는 지켜야 할 약속이 있고 잠들기 전에 가야 할 길이 멀다.", "로버트 프로스트"],
@@ -426,7 +494,37 @@ const QUOTES = [
   ["성공은 목적지가 아니라 여정이다. 결과보다 해 나가는 과정이 더 중요한 경우가 많다.", "아서 애시"],
   ["열정은 흔하지만, 지구력은 드물다.", "앤절라 더크워스"],
   ["되어 가는 것이 이미 되어 있는 것보다 낫다.", "캐럴 드웩"],
-  ["나는 폭풍이 두렵지 않다. 내 배를 모는 법을 배우고 있기 때문이다.", "루이자 메이 올콧"]
+  ["나는 폭풍이 두렵지 않다. 내 배를 모는 법을 배우고 있기 때문이다.", "루이자 메이 올콧"],
+  ["배우고 때때로 익히면 또한 기쁘지 아니한가.", "공자"],
+  ["세 사람이 길을 가면 그 안에 반드시 나의 스승이 있다.", "공자"],
+  ["아는 것을 안다고 하고 모르는 것을 모른다고 하는 것, 이것이 아는 것이다.", "공자"],
+  ["배우기만 하고 생각하지 않으면 얻는 것이 없고, 생각만 하고 배우지 않으면 위태롭다.", "공자"],
+  ["남을 아는 사람은 지혜롭고, 자신을 아는 사람은 밝다. 남을 이기는 사람은 힘이 있고, 자신을 이기는 사람은 강하다.", "노자"],
+  ["학문은 그쳐서는 안 된다. 푸른색은 쪽에서 얻었지만 쪽보다 더 푸르다.", "순자"],
+  ["하늘이 장차 큰 임무를 내리려 할 때는 반드시 먼저 그 마음과 뜻을 괴롭게 한다.", "맹자"],
+  ["검증되지 않은 삶은 살 가치가 없다.", "소크라테스"],
+  ["시작은 일에서 가장 중요한 부분이다.", "플라톤"],
+  ["교육의 뿌리는 쓰지만 그 열매는 달다.", "아리스토텔레스"],
+  ["어려운 것은 우리가 감히 하지 못해서가 아니다. 우리가 감히 하지 못하기 때문에 어려운 것이다.", "세네카"],
+  ["사람은 가르치면서 배운다.", "세네카"],
+  ["우리에게 주어진 시간이 짧은 것이 아니라, 우리가 많은 시간을 낭비하는 것이다.", "세네카"],
+  ["행동을 가로막는 장애물이 오히려 행동을 앞으로 나아가게 한다. 길을 막는 것이 곧 길이 된다.", "마르쿠스 아우렐리우스"],
+  ["먼저 네가 어떤 사람이 되고 싶은지 스스로에게 말하라. 그런 다음 해야 할 일을 하라.", "에픽테토스"],
+  ["배움은 결코 마음을 지치게 하지 않는다.", "레오나르도 다 빈치"],
+  ["아는 것이 힘이다.", "프랜시스 베이컨"],
+  ["감히 알려고 하라! 자신의 이성을 사용할 용기를 가져라.", "임마누엘 칸트"],
+  ["아는 것만으로는 충분하지 않다. 적용해야 한다. 의지만으로는 충분하지 않다. 실행해야 한다.", "요한 볼프강 폰 괴테"],
+  ["내가 더 멀리 보았다면, 그것은 거인들의 어깨 위에 서 있었기 때문이다.", "아이작 뉴턴"],
+  ["삶에서 두려워할 것은 아무것도 없다. 이해해야 할 것이 있을 뿐이다.", "마리 퀴리"],
+  ["모든 사람이 세상을 바꾸려 하지만, 자기 자신을 바꾸려 하는 사람은 아무도 없다.", "레프 톨스토이"],
+  ["살아야 할 이유를 아는 사람은 거의 모든 어려움을 견딜 수 있다.", "프리드리히 니체"],
+  ["춤추는 별을 낳으려면 자기 안에 혼돈을 지녀야 한다.", "프리드리히 니체"],
+  ["영감은 존재한다. 다만 일하고 있는 중에 찾아와야 한다.", "파블로 피카소"],
+  ["발끝이 아니라 별을 올려다보라. 눈에 보이는 것을 이해하려 애쓰고, 우주가 왜 존재하는지 궁금해하라. 호기심을 가져라.", "스티븐 호킹"],
+  ["지능이란 변화에 적응하는 능력이다.", "스티븐 호킹"],
+  ["사람이 될 수 있는 것은 반드시 되어야 한다.", "에이브러햄 매슬로"],
+  ["인간에게서 모든 것을 빼앗을 수 있어도, 어떤 상황에서든 자신의 태도를 선택할 자유만은 빼앗을 수 없다.", "빅터 프랭클"],
+  ["나는 만 가지 킥을 한 번씩 연습한 사람이 두렵지 않다. 한 가지 킥을 만 번 연습한 사람이 두렵다.", "이소룡"]
 ];
 let qBag = [], qLast = -1;
 function newQuote() {
@@ -469,6 +567,7 @@ function go(natural) {
 }
 
 function tick() {
+  if (rollDay()) render();
   if (!s.running) return;
   const now = Date.now(), dt = (now - s.last) / 1000; s.last = now;
   s.stat[s.phase === 'focus' ? 'focus' : 'rest'] += Math.min(dt, s.remaining);
@@ -481,7 +580,7 @@ function tick() {
   } else render();
   if (Math.floor(now / 1000) % 5 === 0) persistStat();
 }
-const persistStat = () => sv('pomo-stat', s.stat);
+const persistStat = () => sv('pomo-days', days);
 setInterval(tick, 250);
 window.addEventListener('beforeunload', () => { tick(); persistStat(); });
 
@@ -490,7 +589,7 @@ $('start').onclick = toggle;
 $('skip').onclick = () => { tick(); go(false); };
 $('reset').onclick = () => { s.running = false; s.remaining = total(s.phase); render(); };
 addEventListener('keydown', e => {
-  if (e.code === 'Space' && !/INPUT|BUTTON/.test(document.activeElement.tagName) && !$('stats').open) { e.preventDefault(); toggle(); }
+  if (e.code === 'Space' && !/INPUT|BUTTON/.test(document.activeElement.tagName) && !$('stats').open && !$('cal').open) { e.preventDefault(); toggle(); }
 });
 
 /* ---------- 세션 종료 ---------- */
@@ -506,9 +605,90 @@ $('end').onclick = () => {
 $('keep').onclick = () => $('stats').close();
 $('fresh').onclick = () => {
   $('stats').close();
-  s.stat = {focus:0, rest:0, cycles:0}; s.phase = 'focus'; s.cycle = 0; s.remaining = total('focus');
-  persistStat(); render();
+  s.running = false; s.phase = 'focus'; s.cycle = 0; s.remaining = total('focus');
+  render();
 };
+
+
+/* ---------- 학습 기록 캘린더 (주간 / 월간) ---------- */
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const dateOfKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const levelOf = sec => { const m = sec / 60; return m <= 0 ? 0 : m < 30 ? 1 : m < 90 ? 2 : m < 180 ? 3 : m < 300 ? 4 : 5; };
+const dayStat = d => days[keyOf(d)] || {focus:0, rest:0, cycles:0};
+let calView = 'month', calAnchor = dateOfKey(dayKey());
+
+function renderCal() {
+  const today = dayKey(), body = $('calBody');
+  let cells = [], label = '';
+  if (calView === 'month') {
+    const y = calAnchor.getFullYear(), m = calAnchor.getMonth();
+    const first = new Date(y, m, 1), n = new Date(y, m + 1, 0).getDate();
+    label = `${y}년 ${m + 1}월`;
+    const lead = first.getDay(), rows = Math.ceil((lead + n) / 7);
+    let h = DOW.map(w => `<div class="dow">${w}</div>`).join('');
+    for (let i = 0; i < rows * 7; i++) {
+      const dn = i - lead + 1;
+      if (dn < 1 || dn > n) { h += '<div class="day off"></div>'; continue; }
+      const d = new Date(y, m, dn), st = dayStat(d), k = keyOf(d);
+      cells.push(st);
+      h += `<div class="day${k === today ? ' today' : ''}" data-l="${levelOf(st.focus)}" title="${k} · 집중 ${dur(st.focus)} · 휴식 ${dur(st.rest)}"><b>${dn}</b><small>${st.focus >= 60 ? durShort(st.focus) : ''}</small></div>`;
+    }
+    body.innerHTML = `<div class="mgrid">${h}</div>`;
+  } else {
+    const start = addDays(calAnchor, -calAnchor.getDay()), end = addDays(start, 6);
+    label = start.getFullYear() === end.getFullYear()
+      ? `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 – ${end.getMonth() + 1}월 ${end.getDate()}일`
+      : `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 – ${end.getFullYear()}년 ${end.getMonth() + 1}월 ${end.getDate()}일`;
+    const week = Array.from({length: 7}, (_, i) => addDays(start, i));
+    const max = Math.max(3600, ...week.map(d => dayStat(d).focus));
+    body.innerHTML = week.map(d => {
+      const st = dayStat(d); cells.push(st);
+      return `<div class="wrow"><div class="wl${keyOf(d) === today ? ' today' : ''}"><b>${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})</b>${keyOf(d) === today ? '<small>오늘</small>' : ''}</div>
+        <div class="bar2"><i style="width:${st.focus / max * 100}%"></i></div>
+        <div class="wv"><b>${st.focus >= 60 ? durShort(st.focus) : '–'}</b><small>휴식 ${st.rest >= 60 ? durShort(st.rest) : '–'}</small></div></div>`;
+    }).join('');
+  }
+  $('cLabel').textContent = label;
+  const f = cells.reduce((a, c) => a + c.focus, 0), r = cells.reduce((a, c) => a + c.rest, 0);
+  const active = cells.filter(c => c.focus >= 60).length;
+  $('calSum').innerHTML = `<div class="big"><div class="f"><span>${calView === 'month' ? '월간' : '주간'} 집중 시간</span><b>${durShort(f)}</b></div><div class="r"><span>${calView === 'month' ? '월간' : '주간'} 휴식 시간</span><b>${durShort(r)}</b></div></div>
+    <div class="sum"><span>학습한 날</span><b>${active}일</b></div>
+    <div class="sum"><span>학습한 날 하루 평균 집중</span><b>${active ? durShort(f / active) : '–'}</b></div>`;
+  document.querySelectorAll('#calTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === calView));
+}
+function calMove(dir) {
+  calAnchor = calView === 'month'
+    ? new Date(calAnchor.getFullYear(), calAnchor.getMonth() + dir, 1)
+    : addDays(calAnchor, 7 * dir);
+  renderCal();
+}
+$('calBtn').onclick = () => { calAnchor = dateOfKey(dayKey()); renderCal(); $('cal').showModal(); };
+$('cPrev').onclick = () => calMove(-1);
+$('cNext').onclick = () => calMove(1);
+$('cToday').onclick = () => { calAnchor = dateOfKey(dayKey()); renderCal(); };
+$('cClose').onclick = () => $('cal').close();
+$('cal').addEventListener('click', e => { if (e.target === $('cal')) $('cal').close(); });
+$('calTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  calView = b.dataset.v; if (calView === 'month') calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth(), Math.min(calAnchor.getDate(), 28)); renderCal();
+});
+
+/* ---------- 실행기(exe) 연동: 창을 닫을 때 요약을 보여 주기 위해 상태를 알려 준다 ---------- */
+const LP = (location.hash.match(/lp=(\d+)/) || [])[1];
+function report(final) {
+  if (!LP) return;
+  try {
+    const body = JSON.stringify({focus: s.stat.focus, rest: s.stat.rest, cycles: s.stat.cycles,
+      done: tasks.filter(t => t.done).length, total: tasks.length, dark: cfg.theme === 'dark', final: !!final});
+    const url = `http://127.0.0.1:${LP}/state`;
+    if (final && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([body], {type: 'text/plain'}));
+    else fetch(url, {method: 'POST', body, keepalive: true}).catch(() => {});
+  } catch {}
+}
+report(false);
+setInterval(() => report(false), 2000);
+addEventListener('pagehide', () => report(true));
 
 /* ---------- 설정 ---------- */
 const FIELDS = [['focus','집중 시간','분',1,180], ['short','짧은 휴식','분',1,60], ['long','긴 휴식','분',1,120], ['cycles','긴 휴식까지 사이클','회',1,12]];
