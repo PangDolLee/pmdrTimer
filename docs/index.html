@@ -582,7 +582,14 @@ function tick() {
 }
 const persistStat = () => sv('pomo-days', days);
 setInterval(tick, 250);
-window.addEventListener('beforeunload', () => { tick(); persistStat(); });
+// exe로 실행한 앱 창을 닫으려 할 때(X 버튼 등) 닫을지 확인한다. 확인 창(요약 포함)은 실행기가 띄운다.
+// 새로고침(F5, Ctrl+R)은 닫는 것이 아니므로 제외한다.
+let reloading = false;
+addEventListener('keydown', e => { if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) reloading = true; }, true);
+window.addEventListener('beforeunload', e => {
+  tick(); persistStat();
+  if (LP && !reloading && !window.__allowClose) { report(false); e.preventDefault(); e.returnValue = ''; }
+});
 
 function toggle() { tick(); s.running = !s.running; s.last = Date.now(); render(); }
 $('start').onclick = toggle;
@@ -674,7 +681,7 @@ $('calTabs').addEventListener('click', e => {
   calView = b.dataset.v; if (calView === 'month') calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth(), Math.min(calAnchor.getDate(), 28)); renderCal();
 });
 
-/* ---------- 실행기(exe) 연동: 창을 닫을 때 요약을 보여 주기 위해 상태를 알려 준다 ---------- */
+/* ---------- 실행기(exe) 연동: 창을 닫으려 할 때 요약을 보여 주기 위해 상태를 알려 준다 ---------- */
 const LP = (location.hash.match(/lp=(\d+)/) || [])[1];
 function report(final) {
   if (!LP) return;
@@ -688,7 +695,6 @@ function report(final) {
 }
 report(false);
 setInterval(() => report(false), 2000);
-addEventListener('pagehide', () => report(true));
 
 /* ---------- 설정 ---------- */
 const FIELDS = [['focus','집중 시간','분',1,180], ['short','짧은 휴식','분',1,60], ['long','긴 휴식','분',1,120], ['cycles','긴 휴식까지 사이클','회',1,12]];
