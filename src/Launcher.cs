@@ -115,6 +115,7 @@ class Summary
     public double Focus, Rest;
     public int Cycles, Done, Total;
     public bool Dark;
+    public string Phase = "focus";
 }
 
 // 화면이 보내는 상태를 받는 아주 작은 HTTP 서버 (127.0.0.1 전용)
@@ -218,6 +219,8 @@ class StateServer
         s.Focus = Num(body, "focus"); s.Rest = Num(body, "rest");
         s.Cycles = (int)Num(body, "cycles"); s.Done = (int)Num(body, "done"); s.Total = (int)Num(body, "total");
         s.Dark = body.Contains("\"dark\":true");
+        Match pm = Regex.Match(body, "\"phase\":\"(\\w+)\"");
+        if (pm.Success) s.Phase = pm.Groups[1].Value;
         lock (gate) { last = s; }
     }
 
@@ -368,13 +371,13 @@ class Watcher : ApplicationContext
     }
 }
 
-// 세션 종료 대화상자와 같은 내용의 요약 창
+// 앱 화면의 대화상자(세션 종료)와 같은 모양으로 그린 요약 확인 창
 class SummaryForm : Form
 {
     public bool CloseApp;   // "종료"를 골랐는지 (창의 X 버튼이나 Esc는 계속 공부하기와 같다)
     readonly Summary s;
     readonly float K;
-    readonly Color bg, card, track, text, muted;
+    readonly Color bg, card, track, line, text, muted, acc1, acc2, focusCol, restCol;
     readonly string family;
 
     static string Dur(double sec)
@@ -385,24 +388,41 @@ class SummaryForm : Form
         return x + "초";
     }
 
+    // 화면과 같은 글꼴 순서(Segoe UI Variable → Segoe UI → 맑은 고딕)
+    static string PickFamily()
+    {
+        foreach (string n in new[] { "Segoe UI Variable Display", "Segoe UI", "Malgun Gothic" })
+        {
+            try { using (Font f = new Font(n, 12)) { if (f.Name == n) return n; } } catch (Exception) { }
+        }
+        return "Segoe UI";
+    }
+
     public SummaryForm(Summary sum)
     {
         s = sum;
         float k = 1f;
         try { using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) k = Math.Max(1f, g.DpiX / 96f); } catch (Exception) { }
         K = k;
+
+        // 화면의 라이트/다크 색과 같은 값
         if (s.Dark)
         {
-            bg = Color.FromArgb(13, 15, 20); card = Color.FromArgb(32, 37, 50); track = Color.FromArgb(48, 54, 70);
-            text = Color.FromArgb(236, 239, 246); muted = Color.FromArgb(140, 149, 168);
+            bg = Color.FromArgb(13, 15, 20); card = Color.FromArgb(32, 34, 39); track = Color.FromArgb(32, 34, 39);
+            line = Color.FromArgb(34, 36, 41); text = Color.FromArgb(242, 244, 248); muted = Color.FromArgb(142, 150, 165);
+            focusCol = Color.FromArgb(255, 138, 138); restCol = Color.FromArgb(79, 224, 180);
         }
         else
         {
-            bg = Color.FromArgb(243, 244, 248); card = Color.FromArgb(228, 230, 236); track = Color.FromArgb(220, 223, 232);
-            text = Color.FromArgb(20, 23, 31); muted = Color.FromArgb(106, 114, 130);
+            bg = Color.FromArgb(243, 244, 248); card = Color.FromArgb(230, 231, 236); track = Color.FromArgb(227, 229, 234);
+            line = Color.FromArgb(226, 228, 233); text = Color.FromArgb(20, 23, 31); muted = Color.FromArgb(106, 114, 130);
+            focusCol = Color.FromArgb(229, 72, 77); restCol = Color.FromArgb(18, 163, 127);
         }
-        family = "Malgun Gothic";
-        try { using (Font probe = new Font(family, 12)) { if (probe.Name != family) family = "Segoe UI"; } } catch (Exception) { family = "Segoe UI"; }
+        // 단계(집중/휴식)에 따른 강조색
+        if (s.Phase == "short") { acc1 = Color.FromArgb(47, 212, 160); acc2 = Color.FromArgb(94, 224, 230); }
+        else if (s.Phase == "long") { acc1 = Color.FromArgb(124, 140, 255); acc2 = Color.FromArgb(177, 140, 255); }
+        else { acc1 = Color.FromArgb(255, 107, 107); acc2 = Color.FromArgb(255, 159, 107); }
+        family = PickFamily();
 
         Text = "포모도로 타이머";
         BackColor = bg;
@@ -410,53 +430,32 @@ class SummaryForm : Form
         MaximizeBox = false; MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
         TopMost = true;
-        ClientSize = new Size((int)(440 * K), (int)(396 * K));
+        KeyPreview = true;
+        ClientSize = new Size((int)(420 * K), (int)(386 * K));
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
 
-        Button keep = MakeButton("계속 공부하기", 30, false);
+        PillButton keep = MakeButton("계속 공부하기", 30, false);
         keep.Click += delegate { CloseApp = false; Close(); };
-        Button quit = MakeButton("종료", 225, true);
+        PillButton quit = MakeButton("종료", 215, true);
         quit.Click += delegate { CloseApp = true; Close(); };
         Controls.Add(keep); Controls.Add(quit);
-        AcceptButton = keep;
-        CancelButton = keep;
+        KeyDown += delegate (object o, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) { CloseApp = false; Close(); }
+        };
     }
 
-    Button MakeButton(string label, int x, bool primary)
+    PillButton MakeButton(string label, int x, bool primary)
     {
-        Button b = new Button();
-        b.Text = label;
-        b.FlatStyle = FlatStyle.Flat;
-        b.Font = new Font(family, 14 * K, FontStyle.Bold, GraphicsUnit.Pixel);
-        if (primary)
-        {
-            b.FlatAppearance.BorderSize = 0;
-            b.BackColor = Color.FromArgb(255, 107, 107);
-            b.ForeColor = Color.White;
-        }
-        else
-        {
-            b.FlatAppearance.BorderColor = track;
-            b.BackColor = bg;
-            b.ForeColor = text;
-        }
-        b.SetBounds((int)(x * K), (int)(328 * K), (int)(185 * K), (int)(46 * K));
+        PillButton b = new PillButton();
+        b.Text = label; b.Primary = primary; b.K = K; b.Family = family;
+        b.Bg = bg; b.Hot = card; b.Line = line; b.Fg = text; b.Acc1 = acc1; b.Acc2 = acc2;
+        b.SetBounds((int)(x * K), (int)(308 * K), (int)(175 * K), (int)(48 * K));
         return b;
     }
 
-    void Label(Graphics g, string str, float px, bool bold, Color c, RectangleF r, StringAlignment h)
-    {
-        using (Font f = new Font(family, px * K, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel))
-        using (SolidBrush b = new SolidBrush(c))
-        using (StringFormat sf = new StringFormat(StringFormatFlags.NoWrap))
-        {
-            sf.Alignment = h; sf.LineAlignment = StringAlignment.Center;
-            g.DrawString(str, f, b, r, sf);
-        }
-    }
-
-    static GraphicsPath Round(RectangleF r, float rad)
+    public static GraphicsPath Round(RectangleF r, float rad)
     {
         GraphicsPath p = new GraphicsPath();
         float d = rad * 2;
@@ -468,39 +467,47 @@ class SummaryForm : Form
         return p;
     }
 
+    // Windows 기본 글자 그리기(ClearType)로 그려 다른 앱과 같은 선명도를 낸다
+    public static void DrawLabel(Graphics g, string family, string str, float px, bool bold, Color c, RectangleF r, TextFormatFlags align)
+    {
+        using (Font f = new Font(family, px, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel))
+            TextRenderer.DrawText(g, str, f, Rectangle.Round(r), c,
+                align | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         g.Clear(bg);
         float k = K;
-        Label(g, "수고하셨어요", 22, true, text, new RectangleF(30 * k, 26 * k, 380 * k, 34 * k), StringAlignment.Near);
-        Label(g, "오늘의 공부 기록입니다. 창을 닫을까요?", 13, false, muted, new RectangleF(30 * k, 62 * k, 380 * k, 22 * k), StringAlignment.Near);
+        TextFormatFlags L = TextFormatFlags.Left, R = TextFormatFlags.Right;
+
+        DrawLabel(g, family, "수고하셨어요", 20 * k, true, text, new RectangleF(30 * k, 30 * k, 360 * k, 28 * k), L);
+        DrawLabel(g, family, "오늘의 공부 기록입니다. 창을 닫을까요?", 13 * k, false, muted, new RectangleF(30 * k, 61 * k, 360 * k, 20 * k), L);
 
         string[] cap = { "총 집중 시간", "총 휴식 시간" };
         string[] val = { Dur(s.Focus), Dur(s.Rest) };
-        Color[] col = s.Dark ? new[] { Color.FromArgb(255, 138, 138), Color.FromArgb(79, 224, 180) }
-                             : new[] { Color.FromArgb(229, 72, 77), Color.FromArgb(18, 163, 127) };
+        Color[] col = { focusCol, restCol };
         for (int i = 0; i < 2; i++)
         {
-            RectangleF r = new RectangleF(30 * k + i * 195 * k, 104 * k, 185 * k, 80 * k);
+            RectangleF r = new RectangleF(30 * k + i * 185 * k, 103 * k, 175 * k, 82 * k);
             using (GraphicsPath p = Round(r, 18 * k)) using (SolidBrush b = new SolidBrush(card)) g.FillPath(b, p);
-            Label(g, cap[i], 12, false, muted, new RectangleF(r.X + 16 * k, r.Y + 12 * k, r.Width - 24 * k, 20 * k), StringAlignment.Near);
-            Label(g, val[i], 22, true, col[i], new RectangleF(r.X + 16 * k, r.Y + 36 * k, r.Width - 24 * k, 34 * k), StringAlignment.Near);
+            DrawLabel(g, family, cap[i], 12 * k, false, muted, new RectangleF(r.X + 16 * k, r.Y + 14 * k, r.Width - 28 * k, 18 * k), L);
+            DrawLabel(g, family, val[i], 22 * k, true, col[i], new RectangleF(r.X + 16 * k, r.Y + 36 * k, r.Width - 28 * k, 32 * k), L);
         }
 
         double sum = s.Focus + s.Rest;
         if (sum <= 0) sum = 1;
-        RectangleF bar = new RectangleF(30 * k, 204 * k, 380 * k, 10 * k);
+        RectangleF bar = new RectangleF(30 * k, 199 * k, 360 * k, 10 * k);
         float fw = (float)(bar.Width * s.Focus / sum);
         using (GraphicsPath clip = Round(bar, 5 * k))
         {
             Region old = g.Clip;
             g.SetClip(clip);
             using (SolidBrush b = new SolidBrush(track)) g.FillRectangle(b, bar);
-            using (SolidBrush b = new SolidBrush(col[0])) g.FillRectangle(b, bar.X, bar.Y, fw, bar.Height);
-            using (SolidBrush b = new SolidBrush(col[1])) g.FillRectangle(b, bar.X + fw, bar.Y, bar.Width - fw, bar.Height);
+            using (SolidBrush b = new SolidBrush(Color.FromArgb(255, 107, 107))) g.FillRectangle(b, bar.X, bar.Y, fw, bar.Height);
+            using (SolidBrush b = new SolidBrush(Color.FromArgb(47, 212, 160))) g.FillRectangle(b, bar.X + fw, bar.Y, bar.Width - fw, bar.Height);
             g.Clip = old;
         }
 
@@ -508,9 +515,54 @@ class SummaryForm : Form
         string[] rowV = { s.Cycles + "회", s.Done + " / " + s.Total };
         for (int i = 0; i < 2; i++)
         {
-            RectangleF r = new RectangleF(30 * k, 232 * k + i * 38 * k, 380 * k, 32 * k);
-            Label(g, rowL[i], 14, false, muted, r, StringAlignment.Near);
-            Label(g, rowV[i], 14, true, text, r, StringAlignment.Far);
+            RectangleF r = new RectangleF(30 * k, 225 * k + i * 32 * k, 360 * k, 32 * k);
+            DrawLabel(g, family, rowL[i], 14 * k, false, muted, r, L);
+            DrawLabel(g, family, rowV[i], 14 * k, true, text, r, R);
         }
+    }
+}
+
+// 앱 화면의 대화상자 버튼과 같은 모양: 둥근 모서리, 보조는 테두리만, 주요는 강조색 그라데이션
+class PillButton : Control
+{
+    public bool Primary;
+    public float K = 1f;
+    public string Family = "Segoe UI";
+    public Color Bg, Hot, Line, Fg, Acc1, Acc2;
+    bool hover, down;
+
+    public PillButton()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        SetStyle(ControlStyles.Selectable, false);
+        Cursor = Cursors.Hand;
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; down = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e) { down = true; Invalidate(); base.OnMouseDown(e); }
+    protected override void OnMouseUp(MouseEventArgs e) { down = false; Invalidate(); base.OnMouseUp(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.Clear(Bg);
+        RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
+        float rad = 14 * K;
+        using (GraphicsPath p = SummaryForm.Round(r, rad))
+        {
+            if (Primary)
+            {
+                using (LinearGradientBrush b = new LinearGradientBrush(r, Acc1, Acc2, 45f)) g.FillPath(b, p);
+                if (hover) using (SolidBrush w = new SolidBrush(Color.FromArgb(down ? 44 : 28, Color.White))) g.FillPath(w, p);
+            }
+            else
+            {
+                if (hover) using (SolidBrush b = new SolidBrush(Hot)) g.FillPath(b, p);
+                using (Pen pen = new Pen(hover ? Acc1 : Line)) g.DrawPath(pen, p);
+            }
+        }
+        SummaryForm.DrawLabel(g, Family, Text, 14 * K, true, Primary ? Color.White : Fg, new RectangleF(0, 0, Width, Height), TextFormatFlags.HorizontalCenter);
     }
 }

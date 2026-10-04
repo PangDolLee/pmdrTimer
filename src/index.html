@@ -341,7 +341,7 @@ function render() {
 }
 
 /* ---------- 타이머 ---------- */
-/* 집중 시작: 비행기 '안전벨트 착용' 사인처럼 맑은 종소리 한 번(ding)
+/* 집중 시작: 평범한 알림음 — 부드럽게 올라가는 2음
    휴식 시작: 낮고 부드럽게 내려가는 2음 */
 const AC = window.AudioContext || window.webkitAudioContext;
 let ac;
@@ -357,8 +357,7 @@ function scheduleSound(ctx, dest, kind, vol, t0 = 0) {
   const v = Math.max(0, Math.min(100, vol)) / 100 * .9;
   if (v <= 0) return;
   if (kind === 'focus') {
-    // 종소리: 기음 + 옥타브·3배음이 길게 울리며 사라짐
-    [[1, 1], [2, .28], [3, .09], [4.2, .03]].forEach(([m, a]) => partial(ctx, dest, 1320 * m, t0, m === 1 ? 2.4 : 1.6 / m + .5, v * a / 1.4, .006));
+    [[784, 0], [1047, .22]].forEach(([f, d]) => partial(ctx, dest, f, t0 + d, .7, v * .8, .015));
   } else {
     [[880, 0], [587, .3]].forEach(([f, d]) => partial(ctx, dest, f, t0 + d, .6, v * .8, .02));
   }
@@ -682,7 +681,7 @@ function report(final) {
   if (!LP) return;
   try {
     const body = JSON.stringify({focus: s.stat.focus, rest: s.stat.rest, cycles: s.stat.cycles,
-      done: tasks.filter(t => t.done).length, total: tasks.length, dark: cfg.theme === 'dark', final: !!final});
+      done: tasks.filter(t => t.done).length, total: tasks.length, dark: cfg.theme === 'dark', phase: s.phase, final: !!final});
     const url = `http://127.0.0.1:${LP}/state`;
     if (final && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([body], {type: 'text/plain'}));
     else fetch(url, {method: 'POST', body, keepalive: true}).catch(() => {});
