@@ -211,8 +211,8 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
       <button class="btn-round" id="skip" title="건너뛰기"><svg viewBox="0 0 24 24"><path d="M6 5l9 7-9 7zM17 5h2v14h-2z"/></svg></button>
     </div>
     <div class="live">
-      <div><span>오늘 집중</span><b id="lf">0분</b></div>
-      <div><span>오늘 휴식</span><b id="lr">0분</b></div>
+      <div><span>이번 세션 집중</span><b id="lf">0분</b></div>
+      <div><span>이번 세션 휴식</span><b id="lr">0분</b></div>
     </div>
     <button class="end" id="end">공부 세션 종료</button>
   </section>
@@ -249,7 +249,7 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
 
 <dialog id="stats">
   <h3>수고하셨어요 🎉</h3>
-  <p>오늘의 공부 기록입니다.</p>
+  <p>이번 세션의 기록입니다.</p>
   <div class="big"><div class="f"><span>총 집중 시간</span><b id="sFocus"></b></div><div class="r"><span>총 휴식 시간</span><b id="sRest"></b></div></div>
   <div class="split"><i id="spF" style="background:#ff6b6b"></i><i id="spR" style="background:#2fd4a0"></i></div>
   <div class="sum"><span>완료한 사이클</span><b id="sCycles"></b></div>
@@ -263,7 +263,7 @@ dialog p{color:var(--muted);font-size:13px;margin-bottom:22px}
   <div class="calnav"><button type="button" class="nb" id="cPrev" aria-label="이전">‹</button><b id="cLabel"></b><button type="button" class="nb" id="cNext" aria-label="다음">›</button><button type="button" class="mini" id="cToday">오늘</button></div>
   <div id="calBody"></div>
   <div class="calsum" id="calSum"></div>
-  <div class="calnote">하루의 기준은 새벽 2시입니다. 새벽 2시가 지나면 오늘의 집중·휴식 시간이 새로 집계됩니다.</div>
+  <div class="calnote">하루의 기준은 새벽 2시입니다. 새벽 2시가 지나면 집중·휴식 시간이 새로 집계되며, '새 세션 시작'으로 화면의 시간을 초기화해도 이 기록은 유지됩니다.</div>
   <div class="acts"><button class="pri" id="cClose" type="button">닫기</button></div>
 </dialog>
 
@@ -298,6 +298,12 @@ let days = ld('pomo-days', {});
   try { localStorage.removeItem('pomo-stat'); } catch {}
 })();
 s.day = '';
+// '새 세션 시작'을 누르면 그 시점의 하루 합계를 기준점으로 저장해 화면의 집중·휴식 시간을 0부터 다시 센다.
+// 날짜별 기록(캘린더)은 지우지 않고, 기준점은 새벽 2시에 날짜가 바뀌면 자동으로 무효가 된다.
+let base = ld('pomo-base', {day:'', focus:0, rest:0, cycles:0});
+const sess = () => base.day === s.day
+  ? {focus: Math.max(0, s.stat.focus - base.focus), rest: Math.max(0, s.stat.rest - base.rest), cycles: Math.max(0, s.stat.cycles - base.cycles)}
+  : {focus: s.stat.focus, rest: s.stat.rest, cycles: s.stat.cycles};
 function rollDay() {
   const k = dayKey();
   if (s.day === k) return false;
@@ -335,8 +341,9 @@ function render() {
   const n = Math.min(cfg.cycles, 12);
   $('dots').innerHTML = Array.from({length:n}, (_, i) =>
     `<span class="dot ${s.phase === 'long' || i < s.cycle ? 'done' : (i === s.cycle && s.phase === 'focus' ? 'now' : '')}"></span>`).join('');
-  $('lf').textContent = durShort(s.stat.focus);
-  $('lr').textContent = durShort(s.stat.rest);
+  const ss = sess();
+  $('lf').textContent = durShort(ss.focus);
+  $('lr').textContent = durShort(ss.rest);
   document.title = `${txt} · ${NAMES[s.phase]}`;
 }
 
@@ -596,16 +603,17 @@ addEventListener('keydown', e => {
 /* ---------- 세션 종료 ---------- */
 $('end').onclick = () => {
   tick(); s.running = false; render();
-  const f = s.stat.focus, r = s.stat.rest, sum = f + r || 1;
+  const ss = sess(), f = ss.focus, r = ss.rest, sum = f + r || 1;
   $('sFocus').textContent = dur(f); $('sRest').textContent = dur(r);
   $('spF').style.width = f / sum * 100 + '%'; $('spR').style.width = r / sum * 100 + '%';
-  $('sCycles').textContent = s.stat.cycles + '회';
+  $('sCycles').textContent = ss.cycles + '회';
   $('sTasks').textContent = `${tasks.filter(t => t.done).length} / ${tasks.length}`;
   $('stats').showModal();
 };
 $('keep').onclick = () => $('stats').close();
 $('fresh').onclick = () => {
   $('stats').close();
+  base = {day: s.day, focus: s.stat.focus, rest: s.stat.rest, cycles: s.stat.cycles}; sv('pomo-base', base);
   s.running = false; s.phase = 'focus'; s.cycle = 0; s.remaining = total('focus');
   render();
 };
@@ -680,7 +688,8 @@ const LP = (location.hash.match(/lp=(\d+)/) || [])[1];
 function report(final) {
   if (!LP) return;
   try {
-    const body = JSON.stringify({focus: s.stat.focus, rest: s.stat.rest, cycles: s.stat.cycles,
+    const ss = sess();
+    const body = JSON.stringify({focus: ss.focus, rest: ss.rest, cycles: ss.cycles,
       done: tasks.filter(t => t.done).length, total: tasks.length, dark: cfg.theme === 'dark', phase: s.phase, final: !!final});
     const url = `http://127.0.0.1:${LP}/state`;
     if (final && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([body], {type: 'text/plain'}));

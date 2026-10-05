@@ -484,7 +484,7 @@ class SummaryForm : Form
         TextFormatFlags L = TextFormatFlags.Left, R = TextFormatFlags.Right;
 
         DrawLabel(g, family, "수고하셨어요", 20 * k, true, text, new RectangleF(30 * k, 30 * k, 360 * k, 28 * k), L);
-        DrawLabel(g, family, "오늘의 공부 기록입니다. 창을 닫을까요?", 13 * k, false, muted, new RectangleF(30 * k, 61 * k, 360 * k, 20 * k), L);
+        DrawLabel(g, family, "이번 세션의 기록입니다. 창을 닫을까요?", 13 * k, false, muted, new RectangleF(30 * k, 61 * k, 360 * k, 20 * k), L);
 
         string[] cap = { "총 집중 시간", "총 휴식 시간" };
         string[] val = { Dur(s.Focus), Dur(s.Rest) };
